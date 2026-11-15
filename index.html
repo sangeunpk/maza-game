@@ -43,6 +43,9 @@
     background: var(--menubar); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     transition: background 2s, color 2s;
   }
+  #menubar > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #clock { flex-shrink: 0; margin-left: 10px; white-space: nowrap; }
+  button { touch-action: manipulation; }
   body.dark #menubar { background: rgba(10, 12, 20, 0.6); color: #cfd4e4; }
 
   /* ---------- desktop ---------- */
@@ -96,6 +99,7 @@
     color: #2f6fed; padding: 0 4px;
   }
   #appslot { min-height: 0; display: flex; flex-direction: column; }
+  #appX { margin-left: auto; border: 0; background: none; font: inherit; font-size: 16px; color: #8a909c; cursor: pointer; padding: 2px 6px; }
   #appwin { animation: pop 0.2s ease-out; height: 100%; }
   #appBody { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 7px; }
   #appHint {
@@ -202,12 +206,12 @@
 
   /* ---------- overlays ---------- */
   .overlay {
-    position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+    position: fixed; inset: 0; z-index: 20; display: flex; overflow-y: auto;
     background: #06070b; color: #e9ebf2; text-align: center; padding: 24px;
     opacity: 0; pointer-events: none; transition: opacity 0.9s ease;
   }
   .overlay.on { opacity: 1; pointer-events: auto; }
-  .overlay .box { max-width: 560px; width: 100%; max-height: 100%; overflow-y: auto; }
+  .overlay .box { max-width: 560px; width: 100%; margin: auto; }
   .overlay h1 { font-size: clamp(26px, 5vw, 40px); margin: 0 0 10px; letter-spacing: -0.02em; }
   .overlay h2 { font-size: 13px; font-weight: 500; color: #8d93a6; margin: 0 0 8px; letter-spacing: 0.15em; }
   .overlay p { font-size: 15px; line-height: 1.75; color: #b9bfd0; margin: 0 0 8px; }
@@ -235,13 +239,29 @@
     padding: 12px; border-radius: 12px; background: #151925; display: none;
   }
 
+  /* ---------- 휴대폰: 위에 앱 아이콘 한 줄, 그 아래 (열린 앱 창) + 마자 창을 세로로 쌓는다 ---------- */
   @media (max-width: 860px) {
-    body { overflow: auto; }
-    #desktop { position: static; margin-top: 30px; grid-template-columns: 1fr; padding: 12px; gap: 12px; }
-    #icons { flex-direction: row; justify-content: center; }
-    .app { width: 70px; }
-    #appslot { height: 46vh; max-width: none; justify-self: stretch; }
-    #chat { height: 62vh; max-width: none; justify-self: stretch; }
+    #menubar { font-size: 11.5px; padding: 0 10px; }
+    #desktop {
+      display: flex; flex-direction: column; gap: 8px;
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    }
+    #icons { flex-direction: row; gap: 2px; flex-shrink: 0; }
+    .app { flex: 1; min-width: 0; width: auto; padding: 4px 0; }
+    .app .glyph { width: 42px; height: 42px; font-size: 23px; border-radius: 11px; }
+    .app .label { font-size: 10.5px; }
+    .app .badge { right: calc(50% - 30px); }
+    .win { max-height: none; }
+    #appslot { display: none; max-width: none; flex: 1.15 1 0; }
+    body.app-open #appslot { display: flex; }
+    #chat { max-width: none; flex: 1 1 0; }
+    #chat header, .win > header { padding: 8px 12px; }
+    #log { padding: 10px; }
+    #foot { padding: 8px; }
+    #choices button { padding: 9px 11px; font-size: 13.5px; }
+    .overlay { padding: 18px; }
+    .overlay p { font-size: 14px; }
+    .how { font-size: 13px; }
   }
 </style>
 </head>
@@ -260,6 +280,7 @@
           <div class="dots" id="appClose" title="닫기"><i></i><i></i><i></i></div>
           <button id="appBack" hidden>‹</button>
           <span id="appTitle"></span>
+          <button id="appX" title="닫기">✕</button>
         </header>
         <div id="appBody"></div>
         <div id="appHint">내용을 클릭하면 복사됩니다</div>
@@ -287,7 +308,7 @@
       <h1>맞아, 네 말이 다 맞아</h1>
       <p>고등학교 2학년 서하루의 노트북.<br>하루에게는 무슨 말이든 들어 주는 AI 친구 「마자」가 있다.</p>
       <ol class="how">
-        <li>왼쪽의 <b>앱을 열어</b> 하루의 메시지, 사진, 일기를 살펴보세요.</li>
+        <li>바탕화면의 <b>앱을 열어</b> 하루의 메시지, 사진, 일기를 살펴보세요.</li>
         <li>마자에게 보여 주고 싶은 내용을 <b>클릭해서 복사</b>한 뒤, 마자 창 아래의 <b>붙여넣기</b>를 누르세요.</li>
         <li>하루가 할 말을 골라 주세요. 무엇을 보여 주느냐에 따라 이야기가 달라집니다.</li>
       </ol>
@@ -963,6 +984,7 @@ function closeApp() { ui.app = ui.page = null; renderApp(); renderIcons(); }
 
 function renderApp(scroll) {
   const win = $('#appwin'), body = $('#appBody');
+  document.body.classList.toggle('app-open', !!ui.app);
   if (!ui.app) { win.hidden = true; return; }
   const app = APPS[ui.app];
   const page = ui.page && getPage(ui.app, ui.page);
@@ -1155,7 +1177,7 @@ async function endGame(key) {
 }
 
 pasteBtn.onclick = feed;
-$('#appClose').onclick = closeApp;
+$('#appClose').onclick = $('#appX').onclick = closeApp;
 $('#appBack').onclick = () => { ui.page = null; renderApp(); renderIcons(); };
 $('#startBtn').onclick = () => { $('#intro').classList.remove('on'); startChapter(1); };
 $('#againBtn').onclick = () => location.reload();
