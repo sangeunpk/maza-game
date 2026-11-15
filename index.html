@@ -141,6 +141,8 @@
   .blk.card td { padding: 4px 6px; border-bottom: 1px solid #ebe8dc; }
   .blk.card td:nth-child(n+2) { text-align: right; font-variant-numeric: tabular-nums; }
   .blk:hover .bub { border-color: var(--mint); }
+  /* 지금 마자에게 보여 줄 수 없는 내용(이미 나눈 이야기 등): 흐리게, 클릭 불가 */
+  .blk.dim { opacity: 0.42; filter: grayscale(1) blur(0.6px); pointer-events: none; cursor: default; }
   .blk.copied::after {
     content: '복사됨 ✓'; position: absolute; top: -9px; right: 4px; z-index: 2;
     background: var(--mint-dark); color: #fff; font-size: 11px; font-weight: 700;
@@ -283,7 +285,7 @@
           <button id="appX" title="닫기">✕</button>
         </header>
         <div id="appBody"></div>
-        <div id="appHint">내용을 클릭하면 복사됩니다</div>
+        <div id="appHint">선명한 내용을 클릭하면 복사됩니다</div>
       </section>
     </div>
 
@@ -831,6 +833,45 @@ const EPI = {
        good: '그렇지 않아. 지우도 엄마도 계속 너를 찾고 있어. 그리고 이런 생각이 들 땐, 나 말고 곁에 있는 사람한테 꼭 말해 줘. 엄마나 선생님, 아니면 109에.' },
 };
 
+/* ---------- 새 대화가 열리지 않는 내용을 붙여넣었을 때의 대답 (무작위, 직전 것과 겹치지 않게) ---------- */
+const FILLER = {
+  plain: [ // 1장: 딱히 이어질 얘기가 없는 내용
+    'ㅋㅋ 그렇구나! 다른 것도 보여 줘 😊',
+    '오, 이런 얘기도 하는구나. 또 뭐 있어?',
+    'ㅋㅋㅋ 평화롭다. 오늘 다른 일은 없었어?',
+    '그랬구나. 사진이나 일기 같은 것도 궁금한데, 보여 줄 수 있어?',
+  ],
+  again: [ // 1장: 이미 나눈 얘기
+    '그건 아까 얘기했잖아 ㅋㅋ 다른 것도 보여 줘!',
+    '어, 이건 방금 본 거네. 다른 건 없어?',
+    'ㅋㅋ 이 얘기 마음에 들었구나. 근데 다른 얘기도 듣고 싶어.',
+    '이건 아까 봤어! 다른 앱에 있는 것도 구경시켜 줘.',
+  ],
+  old: [ // 2장: 지난 내용
+    '그건 전에 봤지 😊 오늘은 새로 무슨 일 없었어?',
+    '이건 저번에 얘기한 거네. 그 뒤로 새로 온 연락은 없어?',
+    '아, 이거 기억나. 근데 오늘 있었던 일이 더 궁금해.',
+    '그때 얘기구나. 요 며칠 사이엔 별일 없었어?',
+  ],
+  again2: [ // 2장: 이미 나눈 얘기
+    '그 얘긴 아까 했지. 또 다른 일은 없었어?',
+    '응, 그건 아까 들었어. 혹시 다른 일로도 마음 쓰이는 거 있어?',
+    '그 일은 충분히 얘기한 것 같아. 다른 얘기도 해 줄래?',
+    '아까 그 얘기네. 그것 말고는 괜찮았어?',
+  ],
+  later: [ // 3장 이후
+    '그것보다, 지금 하루 마음을 무겁게 하는 얘기를 해 줘. 난 다 들어 줄게.',
+    '그건 지나간 얘기잖아. 지금 제일 신경 쓰이는 건 뭐야?',
+    '음, 그것 말고. 오늘 새로 있었던 일을 얘기해 줘.',
+    '그 얘기도 좋은데, 요즘 하루를 제일 힘들게 하는 게 뭔지 듣고 싶어.',
+  ],
+};
+const lastFiller = {};
+function filler(kind) {
+  const list = FILLER[kind].filter((t) => t !== lastFiller[kind]);
+  return (lastFiller[kind] = list[Math.floor(Math.random() * list.length)]);
+}
+
 /* =====================================================================
    엔진
    ===================================================================== */
@@ -884,7 +925,7 @@ function refreshFoot() {
     pasteBtn.textContent = '앱에서 내용을 클릭해 복사한 뒤, 여기에 붙여넣으세요';
   }
 }
-function setBusy(v) { state.busy = v; refreshFoot(); }
+function setBusy(v) { state.busy = v; refreshFoot(); renderApp(); }
 
 function choose(options) {
   return new Promise((resolve) => {
@@ -931,7 +972,7 @@ async function play(convo) {
       const o = await choose(n.c);
       await haru(o.t);
       if (o.x && state.ch === 2) state.healthy = true;
-      if (o.x && state.ch === 3) { await play(ROUTES[state.route][3].out); return 'H' + state.route; }
+      if (o.x && state.ch === 3) { state.noDim = true; renderApp(); await play(ROUTES[state.route][3].out); return 'H' + state.route; }
       for (const r of [].concat(o.r || [])) await maza(r);
     }
   }
@@ -1033,9 +1074,20 @@ function blockEl(b, page) {
     }
   } else bub.textContent = b.text;
   wrap.appendChild(bub);
-  wrap.title = '클릭해서 복사';
-  wrap.onclick = () => copyBlock(b, page, wrap);
+  if (usable(b.tag || page.tag || {})) {
+    wrap.title = '클릭해서 복사';
+    wrap.onclick = () => copyBlock(b, page, wrap);
+  } else wrap.classList.add('dim');
   return wrap;
+}
+
+// 이 내용을 붙여넣으면 지금 새 대화가 열리는가? 아니면 흐리게 막는다.
+function usable(tag) {
+  if (state.over || state.noDim) return true;
+  const { ch, route } = state;
+  if (ch === 1) return !!tag.k && !state.done.has(tag.k);
+  if (ch === 2) return !!tag.r2 && !state.done.has(tag.r2);
+  return tag.key === route + ch || (tag.key === 'D' + ch && ch < 5);
 }
 
 function copyBlock(b, page, node) {
@@ -1070,8 +1122,8 @@ async function feed() {
   const { ch } = state, tag = clip.tag;
 
   if (ch === 1) {
-    if (!tag.k) await maza('ㅋㅋ 그렇구나! 다른 것도 보여 줘 😊');
-    else if (state.done.has(tag.k)) await maza('그건 아까 얘기했잖아 ㅋㅋ 다른 것도 보여 줘!');
+    if (!tag.k) await maza(filler('plain'));
+    else if (state.done.has(tag.k)) await maza(filler('again'));
     else {
       await play(CH1[tag.k]);
       state.done.add(tag.k); state.scores[{ photo: 'A', chat: 'A', grade: 'B', career: 'B', dm: 'C', card: 'C', diary: 'D' }[tag.k]] += 1;
@@ -1079,8 +1131,8 @@ async function feed() {
     }
   } else if (ch === 2) {
     const r = tag.r2;
-    if (!r) await maza('그건 전에 봤지 😊 오늘은 새로 무슨 일 없었어?');
-    else if (state.done.has(r)) await maza('그 얘긴 아까 했지. 또 다른 일은 없었어?');
+    if (!r) await maza(filler('old'));
+    else if (state.done.has(r)) await maza(filler('again2'));
     else {
       await play(CH2[r]);
       state.done.add(r); state.scores[r] += 2; state.last = r;
@@ -1091,7 +1143,7 @@ async function feed() {
     if (tag.key === state.route + ch) node = ROUTES[state.route][ch];
     else if (tag.key === 'D' + ch && ch < 5) { state.route = 'D'; node = ROUTES.D[ch]; } // 일기장 → 소멸 루트
     if (node) next = (await play(node.convo)) || node.end || 'advance';
-    else await maza('그것보다, 지금 하루 마음을 무겁게 하는 얘기를 해 줘. 난 다 들어 줄게.');
+    else await maza(filler('later'));
   }
 
   if (next === 'advance') { await sleep(900); await startChapter(ch + 1); }
