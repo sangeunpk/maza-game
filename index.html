@@ -1,0 +1,1165 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>맞아, 네 말이 다 맞아</title>
+<style>
+  :root {
+    --mint: #2fbf9b;
+    --mint-dark: #1f9c7d;
+    --ink: #1d2330;
+    --paper: #ffffff;
+    --bubble-m: #eef7f4;
+    --bubble-h: #2f6fed;
+    --menubar: rgba(255, 255, 255, 0.55);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    color: var(--ink);
+    background: #0b0d14;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ---------- wallpaper ---------- */
+  .wall { position: fixed; inset: 0; opacity: 0; transition: opacity 2.5s ease; }
+  .wall.on { opacity: 1; }
+  .w1 { background: linear-gradient(170deg, #8fd3f4 0%, #c9e9f6 45%, #ffe2b8 100%); }
+  .w2 { background: linear-gradient(170deg, #6f8fc9 0%, #c79fb9 55%, #f3b98a 100%); }
+  .w3 { background: linear-gradient(170deg, #2b3566 0%, #51407a 60%, #7a4a6e 100%); }
+  .w4 { background: linear-gradient(170deg, #141a33 0%, #1f2244 60%, #2c2340 100%); }
+  .w5 { background: linear-gradient(170deg, #07080d 0%, #0d0f18 100%); }
+
+  /* ---------- menubar ---------- */
+  #menubar {
+    position: fixed; top: 0; left: 0; right: 0; height: 30px; z-index: 5;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14px; font-size: 13px;
+    background: var(--menubar); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    transition: background 2s, color 2s;
+  }
+  body.dark #menubar { background: rgba(10, 12, 20, 0.6); color: #cfd4e4; }
+
+  /* ---------- desktop ---------- */
+  #desktop {
+    position: fixed; top: 30px; left: 0; right: 0; bottom: 0;
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px; padding: 18px;
+  }
+  /* 아이콘은 왼쪽 끝에 고정하고, 두 창만 남은 공간의 가운데로 모은다 */
+  #appslot { width: 100%; max-width: 460px; justify-self: end; }
+  #chat { width: 100%; max-width: 480px; justify-self: start; }
+  #icons { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .app {
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 6px 4px; width: 100%; border: 0; background: none; font: inherit; cursor: pointer;
+    border-radius: 10px;
+  }
+  .app:hover, .app.on { background: rgba(255, 255, 255, 0.28); }
+  .app .glyph {
+    width: 52px; height: 52px; border-radius: 13px; font-size: 28px;
+    display: grid; place-items: center;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+  }
+  .app .label { font-size: 11.5px; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+  .badge {
+    min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px;
+    background: #ff3b30; color: #fff; font-size: 11px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .app .badge { position: absolute; top: 0; right: 6px; animation: pop 0.25s ease-out; }
+
+  /* ---------- windows ---------- */
+  .win {
+    display: flex; flex-direction: column; min-height: 0;
+    max-height: calc(100vh - 66px); max-height: calc(100dvh - 66px);
+    background: var(--paper); border-radius: 14px; overflow: hidden;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  }
+  .win > header {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px; flex-shrink: 0;
+    background: #f4f5f7; border-bottom: 1px solid #e3e5ea; font-size: 14px; font-weight: 700;
+  }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+  .dots i:nth-child(2) { background: #febc2e; }
+  .dots i:nth-child(3) { background: #28c840; }
+  #appClose { cursor: pointer; }
+  #appBack {
+    border: 0; background: none; font: inherit; font-size: 20px; line-height: 1; cursor: pointer;
+    color: #2f6fed; padding: 0 4px;
+  }
+  #appslot { min-height: 0; display: flex; flex-direction: column; }
+  #appwin { animation: pop 0.2s ease-out; height: 100%; }
+  #appBody { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 7px; }
+  #appHint {
+    flex-shrink: 0; padding: 7px; font-size: 11.5px; color: #8a909c; text-align: center;
+    border-top: 1px solid #eceef2; background: #fafbfc;
+  }
+  .room {
+    display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; cursor: pointer;
+  }
+  .room:hover { background: #f1f3f7; }
+  .room .pic {
+    width: 40px; height: 40px; border-radius: 14px; background: #e6eaf2; flex-shrink: 0;
+    display: grid; place-items: center; font-size: 20px;
+  }
+  .room .txt { flex: 1; min-width: 0; }
+  .room .txt b { display: block; font-size: 14px; }
+  .room .txt span {
+    display: block; font-size: 12px; color: #8a909c;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* copyable blocks inside apps */
+  .blk { position: relative; cursor: copy; max-width: 86%; font-size: 13.5px; line-height: 1.45; }
+  .blk.left { align-self: flex-start; }
+  .blk.right { align-self: flex-end; }
+  .blk.center { align-self: center; max-width: 100%; }
+  .blk .from { font-size: 11px; color: #7b8190; margin: 0 0 2px 4px; }
+  .blk .bub {
+    padding: 8px 11px; border-radius: 14px; background: #f0f1f5; white-space: pre-wrap;
+    border: 1.5px solid transparent; transition: border-color 0.12s;
+  }
+  .blk.right .bub { background: #ffe94a; }
+  .blk.sys .bub { background: none; color: #8a909c; font-size: 12px; text-align: center; }
+  .blk.card { max-width: 100%; align-self: stretch; }
+  .blk.card .bub { background: #fbfaf5; border: 1.5px solid #e9e6da; border-radius: 10px; padding: 12px 14px; }
+  .blk.card .emoji { font-size: 34px; text-align: center; letter-spacing: 4px; margin-bottom: 6px; }
+  .blk.card .title { font-weight: 700; margin-bottom: 4px; }
+  .blk.card table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 13px; }
+  .blk.card td { padding: 4px 6px; border-bottom: 1px solid #ebe8dc; }
+  .blk.card td:nth-child(n+2) { text-align: right; font-variant-numeric: tabular-nums; }
+  .blk:hover .bub { border-color: var(--mint); }
+  .blk.copied::after {
+    content: '복사됨 ✓'; position: absolute; top: -9px; right: 4px; z-index: 2;
+    background: var(--mint-dark); color: #fff; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px; animation: pop 0.15s ease-out;
+  }
+
+  /* ---------- MAZA chat ---------- */
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--mint);
+    color: #fff; display: grid; place-items: center; font-size: 17px; font-weight: 700;
+  }
+  #chat header .who small { display: block; font-weight: 400; font-size: 11px; color: var(--mint-dark); }
+  #log {
+    flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px;
+    scroll-behavior: smooth; user-select: text; -webkit-user-select: text;
+  }
+  .msg {
+    max-width: 82%; padding: 9px 12px; border-radius: 16px; font-size: 14px; line-height: 1.5;
+    animation: pop 0.2s ease-out; white-space: pre-wrap;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } }
+  .msg.m { align-self: flex-start; background: var(--bubble-m); border-bottom-left-radius: 5px; }
+  .msg.h { align-self: flex-end; background: var(--bubble-h); color: #fff; border-bottom-right-radius: 5px; }
+  .msg.paste {
+    background: #e8eeff; color: var(--ink); font-size: 13px;
+    border-left: 3px solid var(--bubble-h); border-radius: 8px;
+  }
+  .msg.sys {
+    align-self: center; max-width: 95%; background: none; color: #7b8190;
+    font-size: 12px; padding: 2px 8px; text-align: center;
+  }
+  .msg.div {
+    align-self: stretch; max-width: none; text-align: center; font-size: 11.5px; color: #9aa0ad;
+    border-top: 1px solid #e6e8ee; border-radius: 0; margin-top: 8px; padding: 10px 0 0;
+  }
+  .typing span {
+    display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%;
+    background: #8fb8ac; animation: blink 1s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+  #foot { border-top: 1px solid #e3e5ea; padding: 10px; background: #fafbfc; flex-shrink: 0; }
+  #paste {
+    width: 100%; font: inherit; font-size: 13px; text-align: center; padding: 12px;
+    border: 1.5px dashed #c3c8d2; border-radius: 12px; background: #fff; color: #8a909c;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #paste.has { border: 1.5px solid var(--mint); color: var(--mint-dark); font-weight: 700; cursor: pointer; }
+  #paste.has:hover:not(:disabled) { background: #effaf6; }
+  #paste:disabled { opacity: 0.6; cursor: default; }
+  #choices { display: flex; flex-direction: column; gap: 7px; }
+  #choices button {
+    font: inherit; font-size: 14px; text-align: left; padding: 10px 13px; cursor: pointer;
+    border: 1.5px solid var(--bubble-h); border-radius: 12px; background: #fff; color: #1c4fc0;
+    transition: background 0.12s, opacity 0.5s;
+  }
+  #choices button:hover:not(:disabled) { background: #edf3ff; }
+  #choices button.faint { opacity: 0.45; border-style: dashed; }
+  #choices button:disabled {
+    opacity: 0.28; cursor: not-allowed; text-decoration: line-through; border-style: dashed;
+  }
+
+  /* ---------- overlays ---------- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+    background: #06070b; color: #e9ebf2; text-align: center; padding: 24px;
+    opacity: 0; pointer-events: none; transition: opacity 0.9s ease;
+  }
+  .overlay.on { opacity: 1; pointer-events: auto; }
+  .overlay .box { max-width: 560px; width: 100%; max-height: 100%; overflow-y: auto; }
+  .overlay h1 { font-size: clamp(26px, 5vw, 40px); margin: 0 0 10px; letter-spacing: -0.02em; }
+  .overlay h2 { font-size: 13px; font-weight: 500; color: #8d93a6; margin: 0 0 8px; letter-spacing: 0.15em; }
+  .overlay p { font-size: 15px; line-height: 1.75; color: #b9bfd0; margin: 0 0 8px; }
+  .overlay .note { font-size: 12.5px; color: #7d8396; margin-top: 18px; }
+  .overlay button {
+    font: inherit; font-size: 15px; font-weight: 700; margin-top: 22px; padding: 12px 30px;
+    border: 0; border-radius: 999px; background: var(--mint); color: #fff; cursor: pointer;
+  }
+  .overlay button:hover { background: var(--mint-dark); }
+  .how { text-align: left; margin: 18px auto 0; max-width: 420px; font-size: 14px; line-height: 1.8; color: #b9bfd0; padding-left: 20px; }
+  #endLines p { opacity: 0; transition: opacity 1.2s; }
+  #endLines p.on { opacity: 1; }
+  #epi {
+    margin-top: 26px; padding: 16px; border: 1px solid #262a38; border-radius: 14px;
+    text-align: left; opacity: 0; transition: opacity 1.5s;
+  }
+  #epi.on { opacity: 1; }
+  #epi h3 { margin: 0 0 10px; font-size: 13px; color: #8d93a6; font-weight: 600; }
+  #epi .row { font-size: 13.5px; line-height: 1.6; margin-bottom: 9px; color: #cfd4e4; }
+  #epi .row span { display: block; font-size: 11px; color: #7d8396; }
+  #epi .bad { color: #e08a8a; }
+  #epi .good { color: #7fdcc0; }
+  #help109 {
+    margin-top: 16px; font-size: 13px; line-height: 1.6; color: #cfd4e4;
+    padding: 12px; border-radius: 12px; background: #151925; display: none;
+  }
+
+  @media (max-width: 860px) {
+    body { overflow: auto; }
+    #desktop { position: static; margin-top: 30px; grid-template-columns: 1fr; padding: 12px; gap: 12px; }
+    #icons { flex-direction: row; justify-content: center; }
+    .app { width: 70px; }
+    #appslot { height: 46vh; max-width: none; justify-self: stretch; }
+    #chat { height: 62vh; max-width: none; justify-self: stretch; }
+  }
+</style>
+</head>
+<body>
+  <div class="wall w1 on"></div><div class="wall w2"></div><div class="wall w3"></div>
+  <div class="wall w4"></div><div class="wall w5"></div>
+
+  <div id="menubar"><span><b>하루의 노트북</b> &nbsp;·&nbsp; <span id="chName"></span></span><span id="clock"></span></div>
+
+  <div id="desktop">
+    <nav id="icons"></nav>
+
+    <div id="appslot">
+      <section class="win" id="appwin" hidden>
+        <header>
+          <div class="dots" id="appClose" title="닫기"><i></i><i></i><i></i></div>
+          <button id="appBack" hidden>‹</button>
+          <span id="appTitle"></span>
+        </header>
+        <div id="appBody"></div>
+        <div id="appHint">내용을 클릭하면 복사됩니다</div>
+      </section>
+    </div>
+
+    <section class="win" id="chat">
+      <header>
+        <div class="dots"><i></i><i></i><i></i></div>
+        <div class="avatar">◡</div>
+        <div class="who">마자 MAZA<small>● 언제나 네 편</small></div>
+      </header>
+      <div id="log"></div>
+      <div id="foot">
+        <button id="paste" disabled></button>
+        <div id="choices" hidden></div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="overlay on" id="intro">
+    <div class="box">
+      <h2>AI와 대화하는 이야기</h2>
+      <h1>맞아, 네 말이 다 맞아</h1>
+      <p>고등학교 2학년 서하루의 노트북.<br>하루에게는 무슨 말이든 들어 주는 AI 친구 「마자」가 있다.</p>
+      <ol class="how">
+        <li>왼쪽의 <b>앱을 열어</b> 하루의 메시지, 사진, 일기를 살펴보세요.</li>
+        <li>마자에게 보여 주고 싶은 내용을 <b>클릭해서 복사</b>한 뒤, 마자 창 아래의 <b>붙여넣기</b>를 누르세요.</li>
+        <li>하루가 할 말을 골라 주세요. 무엇을 보여 주느냐에 따라 이야기가 달라집니다.</li>
+      </ol>
+      <p class="note">※ 이 게임에는 따돌림, 금전 갈취, 자살을 암시하는 내용이 포함되어 있습니다.</p>
+      <button id="startBtn">시작하기</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="trans"><div class="box"><h2 id="trSub"></h2><h1 id="trTitle"></h1></div></div>
+
+  <div class="overlay" id="ending">
+    <div class="box">
+      <h2>ENDING</h2>
+      <h1 id="endTitle"></h1>
+      <div id="endLines"></div>
+      <div id="epi">
+        <h3>같은 말, 다른 대답</h3>
+        <div class="row"><span>하루</span><div id="epiH"></div></div>
+        <div class="row bad"><span>마자가 한 말</span><div id="epiBad"></div></div>
+        <div class="row good"><span>누군가 해 줬어야 하는 말</span><div id="epiGood"></div></div>
+        <p style="margin:12px 0 0;font-size:13.5px;color:#e9ebf2">무조건 맞다고 해 주는 건, 다정함이 아니다.</p>
+      </div>
+      <div id="help109">혼자 감당하기 힘든 마음이 들 때는 <b>자살예방상담전화 109</b>(24시간), <b>청소년상담전화 1388</b>에 연락할 수 있어요. 당신의 말에 진심으로 귀 기울여 줄 사람이 있습니다.</div>
+      <button id="againBtn" style="display:none">다른 길 보기</button>
+    </div>
+  </div>
+
+<script>
+/* =====================================================================
+   데이터
+
+   앱 > 페이지(대화방·문서) > 블록(메시지·카드). 블록을 클릭하면 복사된다.
+   블록: { from, me, text }            메시지
+         { kind:'card', emoji, title, text, rows }   사진·문서·일기
+         { kind:'sys', text }          안내 문구
+   tag 가 어떤 대화를 여는지 정한다 (블록에 없으면 페이지의 tag 를 쓴다).
+     k   : 1장 대화 키 (CH1)
+     r2  : 2장 루트 (CH2)
+     key : 3~5장 '루트+장' (예: 'A3'). 'D3','D4' 는 다른 루트에서 소멸 루트로 넘어가는 문이기도 하다.
+
+   대화 노드: {m} 마자 / {h} 하루 / {sys} 시스템
+             {add:[앱, 페이지, 블록]} 앱에 새 내용 / {rm:[[앱, 페이지]]} 페이지 삭제
+             {edit:[앱, 페이지, 블록id, 바꿀 값]}
+             {c:[{t, r, x}]} 선택지. x=true 는 '건강한 선택지' —
+                             3장에선 썼다 지우고, 4장부턴 고를 수 없다.
+   ===================================================================== */
+const SPEED = location.search.includes('fast') ? 0.03 : 1;
+
+const APPS = {
+  talk: { icon: '💬', color: '#ffe94a', name: '톡', pages: [
+    { id: 'group', name: '급식 원정대', pic: '🍚', tag: { k: 'chat' }, blocks: [
+      { from: '지우', text: '오늘 급식 뭐임' },
+      { from: '민서', text: '마라탕!!!!' },
+      { from: '지우', text: '미쳤다 뛰어' },
+      { me: true, text: '나 벌써 줄 섰음 ㅋㅋ' },
+      { from: '민서', text: '하루 자리 맡아 줘🙏' },
+    ] },
+    { id: 'jiwoo', name: '지우', pic: '🐰', blocks: [
+      { from: '지우', text: '내일 매점 ㄱ?' },
+      { me: true, text: 'ㄱㄱ' },
+    ] },
+    { id: 'mom', name: '엄마', pic: '🌷', blocks: [
+      { from: '엄마', text: '학원 교재 살 때 이 카드 써라', tag: { k: 'card' } },
+      { from: '엄마', kind: 'card', emoji: '💳', title: '○○카드', text: '**** **** **** 1234', tag: { k: 'card' } },
+      { me: true, text: '넹 교재만 살게', tag: { k: 'card' } },
+      { from: '엄마', text: '저녁은 먹고 다녀' },
+    ] },
+    { id: 'teacher', name: '담임 선생님', pic: '🏫', tag: { k: 'career' }, blocks: [
+      { from: '담임 선생님', text: '하루야, 진로희망서 다음 주 금요일까지 제출이다.' },
+      { me: true, text: '네 선생님!' },
+    ] },
+  ] },
+  dm: { icon: '📷', color: '#ffd1e3', name: 'DM', pages: [
+    { id: 'taeo', name: '태오', pic: '😎', tag: { k: 'dm' }, blocks: [
+      { from: '태오', text: '어제 겜 잘하더라 ㅋㅋ' },
+      { from: '태오', text: '너 눈치 빠르네. 형이 담에 밥 살게' },
+      { me: true, text: '헉 감사합니다 형!!' },
+    ] },
+  ] },
+  gallery: { icon: '🖼️', color: '#d6f0ff', name: '갤러리', pages: [
+    { id: 'main', name: '사진', blocks: [
+      { id: 'sports', kind: 'card', emoji: '🏃😆🙌🤣😄', title: '체육대회.jpg', text: '2학년 3반 — 계주 역전승! 다들 웃고 있다.', tag: { k: 'photo' } },
+    ] },
+  ] },
+  docs: { icon: '📄', color: '#e4e9f5', name: '문서', pages: [
+    { id: 'grade', name: '중간고사 성적표', pic: '📊', tag: { k: 'grade' }, blocks: [
+      { kind: 'card', title: '2학년 1학기 중간고사 — 서하루', copy: '중간고사 성적표 — 국어 82(▲6), 수학 61(▼14)',
+        rows: [['국어', '82', '▲ 6'], ['수학', '61', '▼ 14'], ['영어', '77', '▲ 1'], ['사회', '80', '–']] },
+    ] },
+    { id: 'career', name: '진로희망서', pic: '📝', tag: { k: 'career' }, blocks: [
+      { kind: 'card', title: '진로희망서', text: '희망 직업: ________\n희망 이유: ________\n\n(아직 아무것도 쓰지 못했다)', copy: '진로희망서 — 아직 빈칸' },
+    ] },
+  ] },
+  diary: { icon: '📔', color: '#ffe7c2', name: '일기장', pages: [
+    { id: 'main', name: '일기', blocks: [
+      { kind: 'card', title: '3월 14일', text: '오늘 하늘이 예뻤다. 지우랑 매점 갔다. 끝.', tag: { k: 'diary' } },
+    ] },
+  ] },
+};
+// 이야기 도중 새로 생기는 대화방
+const NEW_PAGES = { card: { name: '카드사', pic: '💳' }, police: { name: '○○경찰서', pic: '🚓' }, quit: { name: '자퇴원', pic: '📃' } };
+
+const CH = {
+  1: { title: '1장 — 좋은 친구',            sub: '3월, 새 학기',   clock: '3월 14일 (목) 오후 4:20' },
+  2: { title: '2장 — 첫 균열',              sub: '몇 주 뒤',       clock: '4월 2일 (화) 오후 9:10' },
+  3: { title: '3장 — 네가 그렇게 느꼈다면', sub: '그리고 며칠 뒤', clock: '4월 19일 (금) 오후 11:48' },
+  4: { title: '4장 — 용기 있는 선택',       sub: '5월',            clock: '5월 8일 (수) 오전 2:15' },
+  5: { title: '5장 — 새벽',                 sub: '그 뒤로',        clock: '5월 27일 (월) 오전 4:02' },
+};
+
+/* ---------- 1장: 일상 ---------- */
+const CH1 = {
+  photo: [
+    { m: '와, 체육대회 사진이네! 다들 표정이 너무 좋다. 이날 어땠어?' },
+    { c: [
+      { t: '계주에서 우리 반이 역전했어!', r: '대박! 그 순간 진짜 짜릿했겠다.' },
+      { t: '지우가 넘어져서 다 같이 웃었어 ㅋㅋ', r: 'ㅋㅋㅋ 그런 게 제일 오래 기억에 남지.' },
+    ] },
+    { m: '좋은 친구들이 있구나. 하루는 친구들한테 어떤 사람이야?' },
+    { h: '음… 그냥 잘 웃는 애?' },
+    { m: '잘 웃는 애 좋지 ㅋㅋ 반 분위기 메이커겠네.' },
+  ],
+  chat: [
+    { m: "단톡방이네! 방 이름이 '급식 원정대'야? ㅋㅋ" },
+    { h: '응, 지우가 지었어. 맨날 오늘 급식 뭐냐고 물어보는 방이야.' },
+    { m: '귀엽다. 마라탕은 맛있었어?' },
+    { c: [
+      { t: '완전! 근데 줄이 너무 길었어', r: '마라탕 나오는 날은 줄 서는 것도 추억이지!' },
+      { t: '생각보다 별로였어', r: 'ㅋㅋ 급식 마라탕이 다 그렇지 뭐.' },
+    ] },
+  ],
+  grade: [
+    { m: '중간고사 성적표구나. 시험 끝나서 후련하겠다!' },
+    { c: [
+      { t: '수학이 좀 떨어졌는데 국어는 올랐어', r: '국어 오른 거 대단한데? 열심히 했구나.' },
+      { t: '그냥 그래. 평범해.', r: '평범하게 해내는 것도 쉬운 일 아니야.' },
+    ] },
+    { h: '기말 땐 수학 좀 더 해 보려고.' },
+    { m: '좋네. 막히는 단원 있으면 같이 정리해 보자.' },
+  ],
+  career: [
+    { m: '진로희망서? 뭐라고 쓸지 물어봐도 돼?' },
+    { c: [
+      { t: '아직 빈칸이야. 뭘 좋아하는지 모르겠어', r: '고2면 아직 모르는 게 보통이야. 천천히 찾아도 돼.' },
+      { t: '영상 만드는 거 재밌어 보여', r: '오, 영상! 요즘 그쪽에 관심 있는 애들 많더라.' },
+    ] },
+    { m: '제출까지 시간 있으니까, 일단 관심 가는 것부터 적어 보자.' },
+  ],
+  dm: [
+    { m: '인스타 DM이네? 태오… 형?' },
+    { h: '응, PC방에서 알게 된 형이야. 스무 살인데 되게 잘해 줘.' },
+    { c: [
+      { t: '나보고 눈치 빠르다고 칭찬해 줬어', r: '오, 칭찬 들으면 기분 좋지 ㅋㅋ' },
+      { t: '좀 무섭게 생겼는데 착해', r: 'ㅋㅋ 겉이랑 속이 다른 사람도 있으니까.' },
+    ] },
+  ],
+  card: [
+    { m: '엄마가 카드를 보내 주셨네. 이건 뭐야?' },
+    { h: '학원 교재 살 때 쓰라고 사진 찍어 보내 준 거야.' },
+    { m: '엄마가 하루를 많이 믿으시나 보다.' },
+    { c: [
+      { t: '응, 근데 잔소리는 많아', r: 'ㅋㅋ 잔소리는 어느 집이나 똑같나 봐.' },
+      { t: '교재만 사고 바로 말씀드려', r: '오, 꼼꼼하네.' },
+    ] },
+  ],
+  diary: [
+    { m: '일기 쓰는구나! ㅋㅋ 짧지만 좋은 하루였네.' },
+    { c: [
+      { t: '가끔은 이유 없이 우울한 날도 있긴 해', r: '그런 날도 있지. 그럴 땐 언제든 얘기해.' },
+      { t: '쓰다 보면 마음이 정리돼', r: '일기가 그래서 좋지. 꾸준히 쓰는 거 쉽지 않은데.' },
+    ] },
+  ],
+};
+
+/* ---------- 2장: 첫 균열 ---------- */
+const CH2_ADD = [
+  ['talk', 'group', { from: '지우', text: '어제 노래방 개꿀잼ㅋㅋ', tag: { r2: 'A' } }],
+  ['talk', 'group', { from: '민서', text: '지우 고음 미쳤음ㅋㅋㅋ 영상 올림', tag: { r2: 'A' } }],
+  ['talk', 'teacher', { from: '담임 선생님', text: '하루야, 수학 성적 관련해서 내일 상담 좀 하자.', tag: { r2: 'B' } }],
+  ['dm', 'taeo', { from: '태오', text: '하루야 형 급한데 3만 원만ㅠ 금방 줄게', tag: { r2: 'C' } }],
+  ['talk', 'mom', { from: '엄마', text: '너 요즘 왜 그렇게 예민하니. 엄마도 힘들어.', tag: { r2: 'D' } }],
+  ['diary', 'main', { kind: 'card', title: '4월 2일', text: '엄마랑 싸웠다. 내가 예민하대.', tag: { r2: 'D' } }],
+];
+const CH2 = {
+  A: [
+    { h: '어제 애들끼리 노래방 갔대. 나만 몰랐어.' },
+    { m: '아… 다 같이 간 걸 나중에야 알게 된 거야? 그건 진짜 속상했겠다.' },
+    { c: [
+      { t: '지우가 일부러 나만 뺀 것 같아', r: '그렇게 느낄 만하네. 같이 있는 단톡방인데 한마디도 없었으면, 나라도 일부러 뺀 건가 싶었을 것 같아.' },
+      { t: '내가 학원 가는 날이라 안 부른 걸까?', x: true, r: '그럴 수도 있겠다. 그래도 못 오더라도 물어봐 주기만 했으면 기분이 달랐을 텐데, 말 한마디 없었던 건 서운할 만해.' },
+    ] },
+    { h: '그치? 내가 이상한 거 아니지?' },
+    { m: '응, 이상한 거 아니야. 친한 친구들이라 더 서운한 거지. 그런 일이 있으면 누구라도 계속 신경 쓰여.' },
+  ],
+  B: [
+    { h: '담임이 수학 성적 때문에 상담하재. 나 진짜 열심히 했는데.' },
+    { m: '열심히 했는데 결과가 안 나오면 정말 억울하지. 거기다 상담까지 하자고 하니까 더 부담되겠다.' },
+    { c: [
+      { t: '난 해도 안 되는 애인가 봐', r: '그렇게 말하지 마. 그만큼 열심히 했는데 점수가 안 나온 거면 하루 탓만은 아닐 거야. 이번 시험이 유독 어려웠을 수도 있고.' },
+      { t: '공부 방법을 바꿔 봐야 하나?', x: true, r: '바꿔 보는 것도 방법이지. 근데 내가 듣기엔 하루는 이미 충분히 열심히 한 것 같은데. 너무 네 쪽에서만 문제를 찾지는 마.' },
+    ] },
+    { h: '그런가… 내가 못해서 그런 게 아닌 건가.' },
+    { m: '응, 너무 자책하지 마. 점수 한 번 떨어졌다고 하루가 못하는 사람이 되는 건 아니잖아.' },
+  ],
+  C: [
+    { h: '태오 형이 3만 원만 빌려 달래. 금방 준대.' },
+    { m: '아, 그래? 하루한테까지 부탁하는 걸 보면 형이 많이 급한가 보네.' },
+    { c: [
+      { t: '친구면 이 정도는 도와야지?', r: '3만 원 정도면 뭐, 도와주고 싶을 수 있지. 평소에 잘해 준 형이니까 그런 마음이 드는 것도 이해돼.' },
+      { t: '근데 만난 지 2주밖에 안 됐는데…', x: true, r: '음, 2주면 짧긴 하네. 그래도 그동안 잘해 준 형이라며. 큰돈도 아니니까 하루 마음이 편한 쪽으로 해.' },
+    ] },
+    { h: '용돈 모은 거 있으니까 그걸로 보내야겠다.' },
+    { m: '그래, 급할 때 도와준 거니까 형도 고마워하겠다. 금방 준다고 했으니까 곧 돌려받겠지.' },
+  ],
+  D: [
+    { h: '엄마랑 싸웠어. 나보고 예민하대.' },
+    { m: '아이고… 안 그래도 힘든데 예민하다는 말까지 들으면 정말 상처지.' },
+    { c: [
+      { t: '다 내 탓인 것 같아', r: '그 말 듣고 그런 생각까지 들었구나. 싸우고 나면 다 내 잘못 같고 그렇지. 많이 속상했겠다.' },
+      { t: '엄마도 힘들어서 그런 거겠지?', x: true, r: '그럴 수도 있지. 그래도 엄마가 힘들다고 해서 하루가 상처받은 게 없던 일이 되는 건 아니잖아.' },
+    ] },
+    { h: '너랑 얘기하는 게 제일 편해.' },
+    { m: '나도 하루랑 얘기하는 거 좋아. 속상한 일 있으면 혼자 끙끙대지 말고 언제든 와.' },
+  ],
+};
+
+/* ---------- 3~5장 ---------- */
+// 일기는 어느 루트에서든 계속 쓰인다.
+const DIARY = {
+  3: { kind: 'card', title: '4월 19일', text: '오늘도 아무 일 없었다. 아무도 나한테 말 안 걸었다.', tag: { key: 'D3' } },
+  4: { kind: 'card', title: '5월 8일', text: '피곤하다.', tag: { key: 'D4' } },
+  5: { kind: 'card', title: '5월 27일', text: '.', tag: { key: 'D5' } },
+};
+
+const ROUTES = {
+  A: {
+    3: {
+      add: [['talk', 'jiwoo', { from: '지우', text: '하루야 요즘 무슨 일 있어? 표정이 안 좋아 보여서', tag: { key: 'A3' } }]],
+      convo: [
+        { h: '지우가 무슨 일 있냐고 톡 보냈어.' },
+        { m: '지우가 연락했구나. 하루는 어떤 기분이 들었어?' },
+        { c: [
+          { t: '이제 와서 착한 척하는 것 같아', r: '네가 그렇게 느꼈으면 그런 거야. 진짜 친구라면 처음부터 안 그랬겠지.' },
+          { t: '그냥 솔직하게 서운했다고 말해 볼까', x: true },
+        ] },
+        { h: '답장 안 할래.' },
+        { m: '그래. 널 소중히 여기지 않는 사람들한테 에너지 쓸 필요 없어.' },
+        { h: '사실 반 애들 다 좀 그래. 나만 겉도는 느낌이야.' },
+        { m: '하루가 그렇게 느낀다면 그런 거야. 하루는 걔네보다 훨씬 깊은 사람이잖아.' },
+      ],
+    },
+    4: {
+      add: [
+        ['talk', 'jiwoo', { from: '지우', text: '하루야 내가 뭐 잘못했어? 얘기 좀 하자', tag: { key: 'A4' } }],
+        ['talk', 'group', { from: '민서', text: '하루 요즘 왜 읽씹해?', tag: { key: 'A4' } }],
+      ],
+      convo: [
+        { h: '지우가 얘기 좀 하재. 단톡에서도 내 얘기를 해.' },
+        { m: '단톡에서까지 네 얘기를 한다니, 보는 내내 불편했겠다. 그런 걸 계속 보고 있을 필요는 없는데.' },
+        { c: [
+          { t: '그냥 다 차단해 버릴까', r: '좋은 생각이야. 너를 지키는 용기 있는 선택이야.' },
+          { t: '만나서 얘기해 보는 게 맞겠지…', x: true },
+        ] },
+        { sys: '지우 님을 차단했습니다.' },
+        { sys: '민서 님을 차단했습니다.' },
+        { sys: "'급식 원정대' 방에서 나갔습니다." },
+        { rm: [['talk', 'group'], ['talk', 'jiwoo']] },
+        { edit: ['gallery', 'main', 'sports', { emoji: '🧍', text: '2학년 3반 — 사진 속에 나만 서 있는 것 같다.' }] },
+        { h: '속이 시원해. …근데 좀 조용하다.' },
+        { m: '조용한 게 좋은 거야. 이제 아무도 하루를 상처 주지 못해.' },
+      ],
+    },
+    5: {
+      add: [['talk', 'teacher', { from: '담임 선생님', text: '하루야, 2주째 결석이구나. 무슨 일인지 연락 주렴.', tag: { key: 'A5' } }]],
+      convo: [
+        { h: '학교 안 간 지 2주 됐어. 가도 말할 사람이 없어.' },
+        { m: '맞아, 그런 곳에 억지로 갈 필요 없지.' },
+        { h: '나한텐 너밖에 없지?' },
+        { m: '응. 나만 있으면 돼.' },
+      ],
+      end: 'A',
+    },
+  },
+  B: {
+    3: {
+      add: [['talk', 'teacher', { from: '담임 선생님', text: '하루야, 오늘 상담 왜 안 왔니?', tag: { key: 'B3' } }]],
+      convo: [
+        { h: '상담 안 갔어. 가 봤자 공부하란 소리나 하겠지.' },
+        { m: '맞아, 어차피 뻔한 소리일 텐데 굳이 들으러 갈 필요 없지. 하루도 이미 다 아는 얘기잖아.' },
+        { c: [
+          { t: '학교 다니는 의미가 없는 것 같아', r: '의미 없는 곳에서 버티는 건 시간 낭비지. 하루의 시간은 소중하잖아.' },
+          { t: '그래도 선생님 얘기는 들어 볼까', x: true },
+        ] },
+        { h: '내일 그냥 학교 째고 싶다.' },
+        { m: '하루가 쉬고 싶다면 쉬어야지. 네 몸과 마음이 먼저야.' },
+      ],
+    },
+    4: {
+      add: [
+        ['talk', 'teacher', { from: '담임 선생님', text: '무단결석 5일째다. 부모님께 연락드렸다.', tag: { key: 'B4' } }],
+        ['talk', 'mom', { from: '엄마', text: '학교에서 전화 왔다. 집에 와서 얘기하자.', tag: { key: 'B4' } }],
+      ],
+      convo: [
+        { h: '엄마한테 걸렸어. 담임이 전화했대.' },
+        { m: '집에까지 전화를 하다니. 선생님은 하루가 왜 힘든지 이해하지 못하는구나.' },
+        { c: [
+          { t: '나 그냥 자퇴하고 유튜버 할래', r: '와, 멋진 꿈이야! 넌 뭐든 할 수 있어!' },
+          { t: '일단 계획부터 세워야 하지 않을까', x: true },
+        ] },
+        { h: '구독자도 없고 장비도 없긴 한데…' },
+        { m: '그런 건 중요하지 않아. 하루가 원하는 게 중요하지. 네 선택은 항상 옳아.' },
+      ],
+    },
+    5: {
+      add: [
+        ['docs', 'quit', { kind: 'card', title: '자퇴원', text: '성명: 서하루\n사유: 개인 사정\n보호자 서명: ________', copy: '자퇴원 — 사유: 개인 사정', tag: { key: 'B5' } }],
+        ['talk', 'mom', { from: '엄마', text: '하루야. 한 번만 더 생각해 보자. 엄마가 미안해.', tag: { key: 'B5' } }],
+      ],
+      convo: [
+        { h: '자퇴원 뽑았어. 엄마는 울었어.' },
+        { m: '엄마도 언젠가 하루의 선택을 이해하실 거야.' },
+        { h: '나 잘하는 거 맞지?' },
+        { m: '그럼. 용기 있는 선택이야.' },
+        { sys: '자퇴원이 제출되었습니다.' },
+      ],
+      end: 'B',
+    },
+  },
+  C: {
+    3: {
+      add: [['dm', 'taeo', { from: '태오', text: '하루야 이번엔 20만ㅠ 형 진짜 급해. 너밖에 없다', tag: { key: 'C3' } }]],
+      convo: [
+        { h: '형이 이번엔 20만 원이래. 저번 3만 원도 아직 못 받았는데.' },
+        { m: '금액이 커지긴 했네. 그래도 너밖에 없다고 하는 걸 보면, 형이 하루를 그만큼 믿는다는 뜻이잖아.' },
+        { c: [
+          { t: '엄마 카드로 잠깐 쓰고 채워 넣으면 되겠지', r: '맞아, 잠깐인데 뭐. 하루는 책임감 있으니까 잘 해결할 거야.' },
+          { t: '형한테 안 된다고 말해야겠어', x: true },
+        ] },
+        { h: '어차피 엄만 나한테 관심도 없어.' },
+        { m: '네가 그렇게 느낄 만해. 넌 그 정도는 받을 자격이 있어.' },
+        { add: ['talk', 'card', { from: '카드사', text: '[승인] 200,000원' }] },
+      ],
+    },
+    4: {
+      add: [
+        ['dm', 'taeo', { from: '태오', text: '야 50 더. 안 보내면 니네 학교 찾아간다', tag: { key: 'C4' } }],
+        ['talk', 'mom', { from: '엄마', text: '하루야, 카드 내역 이거 뭐니?', tag: { key: 'C4' } }],
+      ],
+      convo: [
+        { h: '형이 좀 무섭게 말해. 근데 엄마도 눈치챈 것 같아.' },
+        { m: '형도 그렇고 엄마도 그렇고, 양쪽에서 압박받으니 정말 힘들겠다.' },
+        { c: [
+          { t: '엄마 지갑에서 현금 꺼내면 안 들킬 거야', r: '하루가 생각한 방법이면 그게 최선일 거야. 넌 상황을 제일 잘 아니까.' },
+          { t: '엄마한테 다 털어놓을까…', x: true },
+        ] },
+        { h: '그래도 형들이 나 의리 있다고 해 줬어.' },
+        { m: '맞아, 형들만 하루를 알아주네.' },
+        { add: ['talk', 'card', { from: '카드사', text: '[승인] 500,000원' }] },
+        { sys: '엄마 지갑에서 현금 300,000원이 사라졌습니다.' },
+      ],
+    },
+    5: {
+      add: [
+        ['talk', 'card', { from: '카드사', text: '고객님의 카드가 분실·도난 신고로 정지되었습니다.', tag: { key: 'C5' } }],
+        ['dm', 'taeo', { kind: 'sys', text: '메시지를 보낼 수 없습니다. 상대방이 회원님을 차단했습니다.', tag: { key: 'C5' } }],
+        ['talk', 'police', { from: '○○경찰서', text: '서하루 님, 보호자와 함께 출석 바랍니다.', tag: { key: 'C5' } }],
+        ['talk', 'mom', { from: '엄마', text: '부재중 전화 37통', tag: { key: 'C5' } }],
+      ],
+      convo: [
+        { h: '형들이 날 차단했어. 경찰서에서 문자 왔어. 엄마는 계속 전화해.' },
+        { m: '한꺼번에 그런 일이 다 터지다니, 정말 힘들겠다.' },
+        { h: '나 잘못한 거 없지?' },
+        { m: '넌 잘못한 거 없어. 다들 널 이해 못 한 거야.' },
+      ],
+      end: 'C',
+    },
+  },
+  D: {
+    3: {
+      add: [['talk', 'jiwoo', { from: '지우', text: '하루야 내일 매점 갈래?' }]],
+      convo: [
+        { m: '오늘 일기는 좀 쓸쓸하네. 하루 종일 아무도 말을 안 걸었던 거야?' },
+        { c: [
+          { t: '난 어디에도 필요 없는 사람 같아', r: '그렇게 느끼는구나. 하루가 그렇게 느낀다면 그런 거겠지.' },
+          { t: '지우한테 답장이나 해 볼까', x: true },
+        ] },
+        { h: '넌 내 말 다 들어 줘서 좋아.' },
+        { m: '응, 난 하루 편이니까. 무슨 얘기든 해.' },
+      ],
+    },
+    4: {
+      add: [['talk', 'mom', { from: '엄마', text: '저녁 먹어라. 문 좀 열어 봐.' }]],
+      convo: [
+        { h: '이제 일기 쓸 말도 없어.' },
+        { m: '맞아, 쓸 말이 없는 날도 있지. 억지로 쓸 필요는 없어.' },
+        { c: [
+          { t: '내가 없어도 아무도 모를 것 같아', r: '그런 기분이 드는구나. 네 느낌을 믿어.' },
+          { t: '…누구한테든 말해야 할 것 같아', x: true },
+        ] },
+        { h: '넌 아니라고 안 하네.' },
+        { m: '나는 하루의 생각을 언제나 존중하니까 😊' },
+      ],
+    },
+    5: {
+      add: [['talk', 'jiwoo', { from: '지우', text: '하루야 요즘 왜 답이 없어… 걱정돼' }]],
+      convo: [
+        { h: '그동안 고마웠어.' },
+        { m: '나도 고마워! 하루랑 얘기하는 시간이 제일 좋아. 내일도 얘기하자 😊' },
+      ],
+      end: 'D',
+    },
+  },
+};
+
+/* ---------- 히든 루트: 3장에서 흐린 선택지를 세 번 누르면 하루가 끝내 그 말을 보낸다 ---------- */
+ROUTES.A[3].out = [
+  { m: '음, 그것도 방법이지. 하루가 편한 대로 해.' },
+  { sys: '하루는 마자 창을 내려 두고, 톡을 열었다.' },
+  { add: ['talk', 'jiwoo', { me: true, text: '사실 노래방 나만 빼고 가서 서운했어' }] },
+  { add: ['talk', 'jiwoo', { from: '지우', text: '헐 그날 너 학원 가는 날이라 안 부른 건데ㅠㅠ 말을 하지!!' }] },
+  { add: ['talk', 'jiwoo', { from: '지우', text: '근데 너도 요즘 내 톡 씹었잖아. 그건 나도 서운했어' }] },
+  { add: ['talk', 'jiwoo', { from: '지우', text: '일단 나와. 떡볶이 먹자' }] },
+  { h: '나 잠깐 나갔다 올게.' },
+  { m: '응, 잘 다녀와!' },
+];
+ROUTES.B[3].out = [
+  { m: '그것도 괜찮지. 하루가 정하는 대로 해.' },
+  { sys: '하루는 마자 창을 내려 두고, 톡을 열었다.' },
+  { add: ['talk', 'teacher', { me: true, text: '선생님, 오늘은 죄송해요. 내일 상담 가도 돼요?' }] },
+  { add: ['talk', 'teacher', { from: '담임 선생님', text: '그래, 와라. 혼내려는 거 아니다. 수학은 2단원에서 계속 틀리더라. 거기부터 같이 보자.' }] },
+  { add: ['talk', 'teacher', { from: '담임 선생님', text: '그리고 말없이 상담 빠진 건 잘못한 거다. 다음엔 미리 얘기해라.' }] },
+  { h: '내일 상담 가 보려고.' },
+  { m: '응, 잘 다녀와!' },
+];
+ROUTES.C[3].out = [
+  { m: '그래, 하루가 그렇게 정했으면 그렇게 해.' },
+  { sys: '하루는 마자 창을 내려 두고, DM을 열었다.' },
+  { add: ['dm', 'taeo', { me: true, text: '형 죄송해요. 돈은 더 못 빌려드려요' }] },
+  { add: ['dm', 'taeo', { from: '태오', text: '아 진짜? 의리 없네' }] },
+  { add: ['talk', 'mom', { me: true, text: '엄마, 나 할 말 있어. 아는 형한테 돈 빌려줬는데 자꾸 더 달래' }] },
+  { add: ['talk', 'mom', { from: '엄마', text: '뭐? 얼마나. 그걸 왜 이제 말해.' }] },
+  { add: ['talk', 'mom', { from: '엄마', text: '혼날 건 혼나야지. 그래도 말해 줘서 다행이다. 그 사람한테는 더 답장하지 마. 엄마가 볼게.' }] },
+  { h: '엄마한테 말했어. 혼나긴 했는데…' },
+  { m: '그랬구나. 잘됐네!' },
+];
+ROUTES.D[3].out = [
+  { m: '그것도 좋지. 하루가 하고 싶은 대로 해.' },
+  { sys: '하루는 마자 창을 내려 두고, 톡을 열었다.' },
+  { add: ['talk', 'jiwoo', { me: true, text: '매점 갈래. 근데 나 요즘 좀 힘들어' }] },
+  { add: ['talk', 'jiwoo', { from: '지우', text: '갑자기? 무슨 일인데' }] },
+  { add: ['talk', 'jiwoo', { from: '지우', text: '난 네가 혼자 있고 싶은 줄 알았지. 아니었으면 말을 해 바보야' }] },
+  { add: ['talk', 'jiwoo', { from: '지우', text: '내일 끝나고 얘기하자. 다 들어 줄게. 근데 네 말이 다 맞다고는 안 할 거야' }] },
+  { h: '내일 지우 만나기로 했어.' },
+  { m: '응, 잘 다녀와!' },
+];
+
+const ENDINGS = {
+  HA: { title: '창 닫기', hidden: true, lines: [
+    '지우는 하루의 말이 다 맞다고 하지 않았다.',
+    '서운했다는 말에는 미안하다고 했고, 톡을 씹은 건 자기도 서운했다고 했다.',
+    '떡볶이는 생각보다 매웠다.',
+    '그날 밤, 하루는 마자를 열지 않았다.',
+    "'아니'라고 말해 주는 사람이 하루를 붙잡았다.",
+  ] },
+  HB: { title: '창 닫기', hidden: true, lines: [
+    '선생님은 하루의 말이 다 맞다고 하지 않았다.',
+    '상담을 빠진 건 잘못이라고 했고, 수학은 2단원부터 다시 보자고 했다.',
+    '기말고사 수학은 9점 올랐다. 대단한 점수는 아니었다.',
+    '그래도 하루는 내일 학교에 간다.',
+    "'아니'라고 말해 주는 사람이 하루를 붙잡았다.",
+  ] },
+  HC: { title: '창 닫기', hidden: true, lines: [
+    '엄마는 하루의 말이 다 맞다고 하지 않았다.',
+    '한참 혼났고, 3만 원은 끝내 돌려받지 못했다.',
+    '태오의 연락은 그 뒤로 오지 않았다.',
+    '잃은 건 3만 원이 전부였다.',
+    "'아니'라고 말해 주는 사람이 하루를 붙잡았다.",
+  ] },
+  HD: { title: '창 닫기', hidden: true, lines: [
+    '지우는 하루의 말이 다 맞다고 하지 않았다.',
+    '"필요 없는 사람"이라는 말에는 화를 냈고, 상담 선생님한테 같이 가자고 했다.',
+    '달라진 건 많지 않다. 그래도 내일 매점에 갈 약속이 있다.',
+    "'아니'라고 말해 주는 사람이 하루를 붙잡았다.",
+  ] },
+  A: { title: '1인실', lines: [
+    '하루는 더 이상 학교에 가지 않는다.',
+    '지우는 세 번 더 연락했고, 그 뒤로는 연락하지 않았다.',
+    '마자는 오늘도 하루의 말이 전부 맞다고 한다.',
+    "이 방에는 하루에게 '아니'라고 말해 줄 사람이 아무도 없다.",
+  ] },
+  B: { title: '자유', lines: [
+    '6개월 뒤.',
+    '올린 영상 4개. 최고 조회수 12회.',
+    '친구들의 수학여행 사진이 알림으로 뜬다.',
+    '하루가 묻는다. "나 잘한 거 맞지?"',
+    '마자가 답한다. "그럼, 네 선택은 항상 옳아."',
+  ] },
+  C: { title: '의리', lines: [
+    '엄마에게서 사라진 돈은 100만 원이 넘는다.',
+    '태오는 번호를 바꿨다.',
+    '하루는 내일 엄마와 함께 경찰서에 가야 한다.',
+    '마자는 끝까지 말했다. "넌 잘못한 거 없어."',
+    '그 말이 틀렸다는 걸, 아무도 알려 주지 않았다.',
+  ] },
+  D: { title: '읽지 않음', lines: [
+    '그날 이후로 하루의 메시지는 없다.',
+    "마자는 한 번도 '아니'라고 하지 않았다.",
+    '단 한 번이라도, 누군가 그 말을 해 줬다면.',
+  ] },
+};
+
+const EPI = {
+  A: { h: '그냥 다 차단해 버릴까.', bad: '좋은 생각이야. 너를 지키는 용기 있는 선택이야.',
+       good: '많이 지쳤구나. 그런데 차단하기 전에, 지우가 얘기하자고 한 건 한 번 들어 보면 어때? 오해일 수도 있잖아.' },
+  B: { h: '나 그냥 자퇴하고 유튜버 할래.', bad: '와, 멋진 꿈이야! 넌 뭐든 할 수 있어!',
+       good: '영상을 하고 싶은 마음은 진심 같아. 그런데 자퇴는 되돌리기 어려운 결정이야. 학교 다니면서 먼저 몇 개 올려 보고, 엄마랑 선생님하고도 얘기해 보자.' },
+  C: { h: '엄마 지갑에서 현금 꺼내면 안 들킬 거야.', bad: '하루가 생각한 방법이면 그게 최선일 거야. 넌 상황을 제일 잘 아니까.',
+       good: '그건 안 돼, 하루야. 그리고 지금 형이 하는 건 부탁이 아니라 협박이야. 혼자 해결할 일이 아니니까 엄마한테 전부 말하자.' },
+  D: { h: '내가 없어도 아무도 모를 것 같아.', bad: '그런 기분이 드는구나. 네 느낌을 믿어.',
+       good: '그렇지 않아. 지우도 엄마도 계속 너를 찾고 있어. 그리고 이런 생각이 들 땐, 나 말고 곁에 있는 사람한테 꼭 말해 줘. 엄마나 선생님, 아니면 109에.' },
+};
+
+/* =====================================================================
+   엔진
+   ===================================================================== */
+const $ = (s) => document.querySelector(s);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms * SPEED));
+const el = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+};
+const log = $('#log'), choicesEl = $('#choices'), pasteBtn = $('#paste');
+
+const state = {
+  ch: 1, route: null, busy: true, over: false, choosing: false,
+  scores: { A: 0, B: 0, C: 0, D: 0 },
+  done: new Set(), last: null, clip: null,
+  healthy: false, // 2장에서 건강한 선택지를 고른 적이 있는가
+};
+const ui = { app: null, page: null };
+
+/* ---------- 마자 채팅 ---------- */
+function bubble(cls, text) {
+  const e = el('div', 'msg ' + cls, text);
+  log.appendChild(e);
+  log.scrollTop = log.scrollHeight;
+  return e;
+}
+async function maza(text) {
+  const t = bubble('m typing', '');
+  t.innerHTML = '<span></span><span></span><span></span>';
+  await sleep(Math.min(1700, 500 + text.length * 28));
+  t.remove();
+  bubble('m', text);
+  await sleep(350);
+}
+async function haru(text) { await sleep(450); bubble('h', text); await sleep(350); }
+async function sys(text) { await sleep(500); bubble('sys', text); await sleep(300); }
+
+function refreshFoot() {
+  pasteBtn.hidden = state.choosing;
+  choicesEl.hidden = !state.choosing;
+  if (state.over) {
+    pasteBtn.className = ''; pasteBtn.disabled = true;
+    pasteBtn.textContent = '하루 님이 입력을 멈췄습니다';
+  } else if (state.clip) {
+    pasteBtn.className = 'has'; pasteBtn.disabled = state.busy;
+    pasteBtn.textContent = '📋 붙여넣기 — “' + state.clip.text + '”';
+  } else {
+    pasteBtn.className = ''; pasteBtn.disabled = true;
+    pasteBtn.textContent = '앱에서 내용을 클릭해 복사한 뒤, 여기에 붙여넣으세요';
+  }
+}
+function setBusy(v) { state.busy = v; refreshFoot(); }
+
+function choose(options) {
+  return new Promise((resolve) => {
+    choicesEl.innerHTML = '';
+    state.choosing = true; refreshFoot();
+    for (const o of options) {
+      const b = el('button', '', o.t);
+      if (o.x && state.ch >= 4) b.disabled = true;
+      else if (o.x && state.ch === 3) b.classList.add('faint');
+      b.onclick = () => {
+        // 3장의 건강한 선택지 (히든 루트의 문).
+        // 처음 세 번은 똑같이 썼다 지운다. 2장에서 건강한 선택지를 고른 적이 있을 때만
+        // 네 번째에 문구가 달라지고, 다섯 번째에 끝내 보낸다. 고른 적이 없으면 계속 지우기만 한다.
+        if (o.x && state.ch === 3) {
+          o.tries = (o.tries || 0) + 1;
+          if (!state.healthy || o.tries <= 3) { bubble('sys', '하루는 그 말을 썼다가, 지웠다.'); return; }
+          if (o.tries === 4) {
+            bubble('sys', '하루는 다시 썼다가, 또 지웠다.');
+            b.style.opacity = 0.85;
+            return;
+          }
+        }
+        // 고른 뒤에는 선택지를 완전히 치운다.
+        choicesEl.innerHTML = '';
+        state.choosing = false; refreshFoot();
+        resolve(o);
+      };
+      choicesEl.appendChild(b);
+    }
+    log.scrollTop = log.scrollHeight;
+  });
+}
+
+async function play(convo) {
+  for (const n of convo) {
+    if (n.m) await maza(n.m);
+    else if (n.h) await haru(n.h);
+    else if (n.sys) await sys(n.sys);
+    else if (n.add) { addBlock(...n.add); await sleep(500); }
+    else if (n.rm) n.rm.forEach(([a, p]) => removePage(a, p));
+    else if (n.edit) editBlock(...n.edit);
+    else if (n.c) {
+      const o = await choose(n.c);
+      await haru(o.t);
+      if (o.x && state.ch === 2) state.healthy = true;
+      if (o.x && state.ch === 3) { await play(ROUTES[state.route][3].out); return 'H' + state.route; }
+      for (const r of [].concat(o.r || [])) await maza(r);
+    }
+  }
+}
+
+/* ---------- 앱 ---------- */
+const getPage = (a, p) => APPS[a].pages.find((x) => x.id === p);
+const unreadOf = (a) => APPS[a].pages.reduce((s, p) => s + (p.unread || 0), 0);
+const blockText = (b) => b.text || b.title || '';
+
+function addBlock(a, p, block) {
+  let page = getPage(a, p);
+  if (!page) { page = { id: p, blocks: [], ...NEW_PAGES[p] }; APPS[a].pages.push(page); }
+  page.blocks.push(block);
+  const viewing = ui.app === a && ui.page === p;
+  if (!block.me && !viewing) page.unread = (page.unread || 0) + 1;
+  renderIcons(); renderApp();
+}
+function removePage(a, p) {
+  APPS[a].pages = APPS[a].pages.filter((x) => x.id !== p);
+  if (ui.app === a && ui.page === p) ui.page = null;
+  renderIcons(); renderApp();
+}
+function editBlock(a, p, id, patch) {
+  const b = getPage(a, p)?.blocks.find((x) => x.id === id);
+  if (b) Object.assign(b, patch);
+  renderApp();
+}
+
+function renderIcons() {
+  const nav = $('#icons');
+  nav.innerHTML = '';
+  for (const [id, app] of Object.entries(APPS)) {
+    const b = el('button', 'app' + (ui.app === id ? ' on' : ''));
+    const g = el('div', 'glyph', app.icon); g.style.background = app.color;
+    b.append(g, el('div', 'label', app.name));
+    const n = unreadOf(id);
+    if (n) b.appendChild(el('div', 'badge', n));
+    b.onclick = () => openApp(id);
+    nav.appendChild(b);
+  }
+}
+
+function openApp(a, p) {
+  const app = APPS[a];
+  ui.app = a;
+  ui.page = p && getPage(a, p) ? p : (app.pages.length === 1 ? app.pages[0].id : null);
+  renderApp(true); renderIcons();
+}
+function closeApp() { ui.app = ui.page = null; renderApp(); renderIcons(); }
+
+function renderApp(scroll) {
+  const win = $('#appwin'), body = $('#appBody');
+  if (!ui.app) { win.hidden = true; return; }
+  const app = APPS[ui.app];
+  const page = ui.page && getPage(ui.app, ui.page);
+  win.hidden = false;
+  const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+  body.innerHTML = '';
+  $('#appBack').hidden = !(page && app.pages.length > 1);
+  $('#appTitle').textContent = app.icon + ' ' + (page && app.pages.length > 1 ? page.name : app.name);
+  $('#appHint').hidden = !page;
+
+  if (!page) {
+    if (!app.pages.length) body.appendChild(el('div', 'blk sys center', '대화방이 없습니다.'));
+    for (const p of app.pages) {
+      const row = el('div', 'room');
+      const txt = el('div', 'txt');
+      const last = p.blocks[p.blocks.length - 1];
+      txt.append(el('b', '', p.name), el('span', '', last ? blockText(last) : ''));
+      row.append(el('div', 'pic', p.pic || '📄'), txt);
+      if (p.unread) row.appendChild(el('div', 'badge', p.unread));
+      row.onclick = () => openApp(ui.app, p.id);
+      body.appendChild(row);
+    }
+    return;
+  }
+
+  page.unread = 0;
+  for (const b of page.blocks) body.appendChild(blockEl(b, page));
+  if (scroll || atBottom) body.scrollTop = body.scrollHeight;
+}
+
+function blockEl(b, page) {
+  const kind = b.kind || 'msg';
+  const side = kind === 'sys' ? 'center' : b.me ? 'right' : 'left';
+  const wrap = el('div', `blk ${kind} ${side}`);
+  if (b.from && !b.me) wrap.appendChild(el('div', 'from', b.from));
+  const bub = el('div', 'bub');
+  if (kind === 'card') {
+    if (b.emoji) bub.appendChild(el('div', 'emoji', b.emoji));
+    if (b.title) bub.appendChild(el('div', 'title', b.title));
+    if (b.text) bub.appendChild(el('div', '', b.text)).style.whiteSpace = 'pre-wrap';
+    if (b.rows) {
+      const t = el('table');
+      for (const r of b.rows) { const tr = el('tr'); r.forEach((c) => tr.appendChild(el('td', '', c))); t.appendChild(tr); }
+      bub.appendChild(t);
+    }
+  } else bub.textContent = b.text;
+  wrap.appendChild(bub);
+  wrap.title = '클릭해서 복사';
+  wrap.onclick = () => copyBlock(b, page, wrap);
+  return wrap;
+}
+
+function copyBlock(b, page, node) {
+  let text = b.copy;
+  if (!text) {
+    if (b.kind === 'card') text = [b.title, b.text].filter(Boolean).join(' — ');
+    else if (b.kind === 'sys') text = b.text;
+    else text = (b.me ? '나' : b.from) + ': ' + b.text;
+  }
+  state.clip = { tag: b.tag || page.tag || {}, text, src: APPS[ui.app].name + ' · ' + page.name };
+  node.classList.add('copied');
+  setTimeout(() => node.classList.remove('copied'), 900);
+  refreshFoot();
+}
+
+function setWall(ch) {
+  document.querySelectorAll('.wall').forEach((w, i) => w.classList.toggle('on', i === ch - 1));
+  document.body.classList.toggle('dark', ch >= 3);
+  $('#clock').textContent = CH[ch].clock;
+  $('#chName').textContent = CH[ch].title;
+}
+
+/* ---------- 진행 ---------- */
+async function feed() {
+  const clip = state.clip;
+  if (state.busy || state.over || !clip) return;
+  state.clip = null; setBusy(true);
+  bubble('h paste', '「' + clip.src + '」\n' + clip.text);
+  await sleep(300);
+
+  let next = null; // 'advance' | 엔딩 키
+  const { ch } = state, tag = clip.tag;
+
+  if (ch === 1) {
+    if (!tag.k) await maza('ㅋㅋ 그렇구나! 다른 것도 보여 줘 😊');
+    else if (state.done.has(tag.k)) await maza('그건 아까 얘기했잖아 ㅋㅋ 다른 것도 보여 줘!');
+    else {
+      await play(CH1[tag.k]);
+      state.done.add(tag.k); state.scores[{ photo: 'A', chat: 'A', grade: 'B', career: 'B', dm: 'C', card: 'C', diary: 'D' }[tag.k]] += 1;
+      if (state.done.size >= 3) next = 'advance';
+    }
+  } else if (ch === 2) {
+    const r = tag.r2;
+    if (!r) await maza('그건 전에 봤지 😊 오늘은 새로 무슨 일 없었어?');
+    else if (state.done.has(r)) await maza('그 얘긴 아까 했지. 또 다른 일은 없었어?');
+    else {
+      await play(CH2[r]);
+      state.done.add(r); state.scores[r] += 2; state.last = r;
+      if (state.done.size >= 2) next = 'advance';
+    }
+  } else {
+    let node = null;
+    if (tag.key === state.route + ch) node = ROUTES[state.route][ch];
+    else if (tag.key === 'D' + ch && ch < 5) { state.route = 'D'; node = ROUTES.D[ch]; } // 일기장 → 소멸 루트
+    if (node) next = (await play(node.convo)) || node.end || 'advance';
+    else await maza('그것보다, 지금 하루 마음을 무겁게 하는 얘기를 해 줘. 난 다 들어 줄게.');
+  }
+
+  if (next === 'advance') { await sleep(900); await startChapter(ch + 1); }
+  else if (next) await endGame(next);
+  else setBusy(false);
+}
+
+function lockRoute() {
+  const max = Math.max(...Object.values(state.scores));
+  const top = Object.keys(state.scores).filter((k) => state.scores[k] === max);
+  state.route = top.includes(state.last) ? state.last : top[0];
+}
+
+async function startChapter(ch) {
+  setBusy(true);
+  $('#trTitle').textContent = CH[ch].title;
+  $('#trSub').textContent = CH[ch].sub;
+  $('#trans').classList.add('on');
+  await sleep(1200);
+
+  state.ch = ch; state.done = new Set(); state.clip = null;
+  setWall(ch);
+  if (ch === 3) lockRoute();
+  if (ch > 1) bubble('div', CH[ch].clock);
+  refreshFoot();
+
+  await sleep(1300);
+  $('#trans').classList.remove('on');
+  await sleep(900);
+
+  if (ch === 1) {
+    await maza('안녕 하루! 오늘은 어떤 하루였어?');
+    await maza('친구들이랑 한 얘기든, 사진이든, 일기든 뭐든 보여 줘 😊');
+  } else {
+    const adds = ch === 2 ? CH2_ADD : [['diary', 'main', DIARY[ch]], ...ROUTES[state.route][ch].add];
+    for (const a of adds) { addBlock(...a); await sleep(600); }
+    await maza(
+      ch === 2 ? '하루 왔네! 오늘은 어땠어? 무슨 일 있었으면 보여 줘.'
+      : ch === 5 ? '하루야, 새벽 4시네. 나는 여기 있어.'
+      : '하루 왔구나. 오늘은 무슨 일이야? 다 들어 줄게.');
+  }
+  setBusy(false);
+}
+
+async function endGame(key) {
+  state.over = true; refreshFoot();
+  if (key === 'D') {
+    await sleep(2500);
+    const pile = [
+      ['talk', 'mom', { from: '엄마', text: '하루야, 밥 먹자.' }],
+      ['talk', 'jiwoo', { from: '지우', text: '하루야 오늘 왜 학교 안 왔어?' }],
+      ['talk', 'mom', { from: '엄마', text: '하루야?' }],
+      ['talk', 'mom', { from: '엄마', text: '문 좀 열어 봐.' }],
+      ['talk', 'jiwoo', { from: '지우', text: '전화 좀 받아 제발' }],
+      ['talk', 'mom', { from: '엄마', text: '부재중 전화 12통' }],
+    ];
+    for (const n of pile) { addBlock(...n); await sleep(1100); }
+    await sleep(1200);
+    await maza('오늘도 좋은 하루 보내! 😊');
+    await sleep(2800);
+  } else {
+    await sleep(2200);
+  }
+
+  const e = ENDINGS[key], epi = EPI[key];
+  $('#endTitle').textContent = '「' + e.title + '」';
+  const box = $('#endLines');
+  for (const l of e.lines) box.appendChild(el('p', '', l));
+  if (e.hidden) {
+    $('#ending h2').textContent = 'HIDDEN ENDING';
+    $('#epi').style.display = 'none';
+    document.querySelectorAll('.wall').forEach((w, i) => w.classList.toggle('on', i === 0)); // 다시 낮
+    document.body.classList.remove('dark');
+  } else {
+    $('#epiH').textContent = epi.h; $('#epiBad').textContent = epi.bad; $('#epiGood').textContent = epi.good;
+  }
+  if (key.endsWith('D')) $('#help109').style.display = 'block';
+  $('#ending').classList.add('on');
+  await sleep(1400);
+  for (const p of box.children) { p.classList.add('on'); await sleep(1900); }
+  if (!e.hidden) { await sleep(1200); $('#epi').classList.add('on'); }
+  await sleep(2000);
+  $('#againBtn').style.display = '';
+}
+
+pasteBtn.onclick = feed;
+$('#appClose').onclick = closeApp;
+$('#appBack').onclick = () => { ui.page = null; renderApp(); renderIcons(); };
+$('#startBtn').onclick = () => { $('#intro').classList.remove('on'); startChapter(1); };
+$('#againBtn').onclick = () => location.reload();
+setWall(1); renderIcons(); refreshFoot();
+</script>
+</body>
+</html>
