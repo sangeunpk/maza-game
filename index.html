@@ -199,7 +199,7 @@
     transition: background 0.12s, opacity 0.5s;
   }
   #choices button:hover:not(:disabled) { background: #edf3ff; }
-  #choices button.faint { opacity: 0.45; border-style: dashed; }
+  #choices button.faint { opacity: 0.45; border-style: dashed; text-decoration: line-through; }
   #choices button:disabled {
     opacity: 0.28; cursor: not-allowed; text-decoration: line-through; border-style: dashed;
   }
@@ -904,6 +904,7 @@ function choose(options) {
           if (o.tries === 4) {
             bubble('sys', '하루는 다시 썼다가, 또 지웠다.');
             b.style.opacity = 0.85;
+            b.style.textDecoration = 'none'; // 이제 보낼 수 있다는 신호로 취소선을 걷는다
             return;
           }
         }
